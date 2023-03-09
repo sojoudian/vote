@@ -11,13 +11,14 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 )
 
 type vars struct {
 	hostname string
+	option_a string
+	option_b string
 }
 
 type voteData struct {
@@ -27,7 +28,7 @@ type voteData struct {
 
 func getRedis(ctx context.Context) *redis.Client {
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "redis:6379",
+		Addr:     "localhost:6379",
 		Password: "",
 		DB:       0,
 	})
@@ -75,27 +76,28 @@ func hello(w http.ResponseWriter, r *http.Request, ctx context.Context) {
 		os.Exit(1)
 	}
 	fmt.Printf("Hostname: %s", hostname)
+	option_a := os.Getenv("OPTION_A")
+	option_b := os.Getenv("OPTION_B")
 
-	optionA := os.Getenv("OPTION_A")
-	optionB := os.Getenv("OPTION_B")
-
-	templateDir := filepath.Join("templates", "index.html")
-	tmpl := template.Must(template.ParseFiles(templateDir))
-	tmpl = tmpl.Funcs(template.FuncMap{"option_a": optionA})
-	tmpl = tmpl.Funcs(template.FuncMap{"option_b": optionB})
+	tmpl, err := template.ParseFiles("templates/index.html")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	err = tmpl.Execute(w, struct {
 		OptionA string
 		OptionB string
 		Host    string
 		Vote    string
 	}{
-		OptionA: optionA,
-		OptionB: optionB,
+		OptionA: option_a,
+		OptionB: option_b,
 		Host:    hostname,
 		Vote:    vote,
 	})
 	if err != nil {
-		log.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	http.SetCookie(w, cookie)
 }
@@ -109,13 +111,16 @@ func main() {
 	port := os.Getenv("PORT")
 
 	ctx := context.Background()
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		hello(w, r, ctx)
 	})
+	fs := http.FileServer(http.Dir("static"))
+	http.Handle("/static/", http.StripPrefix("/static/", fs))
 
 	// handle `/` route
-	fs := http.FileServer(http.Dir("./templates"))
-	http.Handle("/", fs)
+	//fs := http.FileServer(http.Dir("./templates"))
+	//http.Handle("/", fs)
 
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 
