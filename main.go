@@ -16,9 +16,9 @@ import (
 )
 
 type vars struct {
-	hostname string
-	option_a string
-	option_b string
+	Hostname string
+	Option_a string
+	Option_b string
 }
 
 type voteData struct {
@@ -70,14 +70,14 @@ func hello(w http.ResponseWriter, r *http.Request, ctx context.Context) {
 			log.Println(err)
 		}
 	}
-	hostname, err := os.Hostname()
+	Hostname, err := os.Hostname()
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	fmt.Printf("Hostname: %s", hostname)
-	option_a := os.Getenv("OPTION_A")
-	option_b := os.Getenv("OPTION_B")
+	fmt.Printf("Hostname: %s", Hostname)
+	Option_a := os.Getenv("OPTION_A")
+	Option_b := os.Getenv("OPTION_B")
 
 	tmpl, err := template.ParseFiles("templates/index.html")
 	if err != nil {
@@ -85,21 +85,22 @@ func hello(w http.ResponseWriter, r *http.Request, ctx context.Context) {
 		return
 	}
 	err = tmpl.Execute(w, struct {
-		OptionA string
-		OptionB string
-		Host    string
-		Vote    string
+		Option_a string
+		Option_b string
+		Hostname string
+		Vote     string
 	}{
-		OptionA: option_a,
-		OptionB: option_b,
-		Host:    hostname,
-		Vote:    vote,
+		Option_a: Option_a,
+		Option_b: Option_b,
+		Hostname: Hostname,
+		Vote:     vote,
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	http.SetCookie(w, cookie)
+	// Remove the following line to fix the error
+	//http.ResponseWriter.WriteHeader(http.StatusOK)
 }
 
 func main() {
@@ -115,7 +116,7 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		hello(w, r, ctx)
 	})
-	fs := http.FileServer(http.Dir("static"))
+	fs := http.FileServer(http.Dir("./templates/static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
 
 	// handle `/` route
